@@ -1,33 +1,33 @@
 {
   "name": "@elizaos/plugin-morpheus",
-  "version": "1.0.0-beta.37",
-  "type": "module",
-  "main": "dist/index.js",
-  "module": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "publishConfig": {
-    "access": "public"
-  },
-  "files": [
-    "dist",
-    "README.md"
-  ],
-  "dependencies": {
-    "@ai-sdk/openai": "^1.1.9",
-    "@ai-sdk/ui-utils": "1.1.9",
-    "@elizaos/core": "workspace:*",
-    "ai": "^4.1.25",
-    "formdata-node": "^5.0.1",
-    "js-tiktoken": "^1.0.18",
-    "tsup": "8.4.0"
-  },
-  "devDependencies": {
-    "bun-types": "latest"
-  },
-  "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit"
-  },
-  "gitHead": "646c632924826e2b75c2304a75ee56959fe4a460"
+  "version": "1.0.0",
+  "agentConfig": {
+    "pluginType": "elizaos:plugin:1.0.0",
+    "pluginParameters": {
+      "MORPHEUS_API_KEY": {
+        "type": "string",
+        "description": "Morpheus API key"
+      },
+      "MORPHEUS_SMALL_MODEL": {
+        "type": "string",
+        "description": "Morpheus small model for text generation"
+      },
+      "MORPHEUS_LARGE_MODEL": {
+        "type": "string",
+        "description": "Morpheus large model for text generation"
+      },
+      "OPENAI_API_KEY": {
+        "type": "string",
+        "description": "OpenAI API key"
+      },
+      "OPENAI_EMBEDDING_MODEL": {
+        "type": "string",
+        "description": "OpenAI embedding model"
+      },
+      "OPENAI_EMBEDDING_DIMENSIONS": {
+        "type": "number",
+        "description": "Optional custom dimensions for embeddings"
+      }
+    }
+  }
 }

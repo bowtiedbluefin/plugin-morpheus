@@ -4,49 +4,25 @@ import type {
   ObjectGenerationParams,
   Plugin,
   TextEmbeddingParams,
+  IAgentRuntime,
 } from '@elizaos/core';
 import { type GenerateTextParams, ModelType, logger } from '@elizaos/core';
 import { generateObject, generateText } from 'ai';
 import { FormData as NodeFormData, File as NodeFile } from 'formdata-node';
+import {
+  getBaseURL,
+  getMorpheusApiKey,
+  getSmallModel,
+  getLargeModel,
+  getOpenAIApiKey,
+  getOpenAIEmbeddingModel,
+  getOpenAIEmbeddingDimensions,
+  OPENAI_BASE_URL,
+  validateMorpheusConfig,
+} from './environment';
+import type { MorpheusApiRequestParams } from './types';
 
-// Morpheus-specific helper functions
-function getSetting(runtime: any, key: string, defaultValue?: string): string | undefined {
-  return runtime.getSetting(key) ?? process.env[key] ?? defaultValue;
-}
-
-function getBaseURL(): string {
-  return 'http://api.mor.org/api/v1'; // Morpheus base URL (no trailing slash)
-}
-
-function getMorpheusApiKey(runtime: any): string | undefined {
-  return getSetting(runtime, 'MORPHEUS_API_KEY');
-}
-
-function getSmallModel(runtime: any): string {
-  return getSetting(runtime, 'MORPHEUS_SMALL_MODEL') ?? 'llama-3.2-3b';
-}
-
-function getLargeModel(runtime: any): string {
-  return getSetting(runtime, 'MORPHEUS_LARGE_MODEL') ?? 'llama-3.3-70b';
-}
-
-// OpenAI-specific helper functions for embeddings
-function getOpenAIApiKey(runtime: any): string | undefined {
-  return getSetting(runtime, 'OPENAI_API_KEY');
-}
-
-function getOpenAIEmbeddingModel(runtime: any): string {
-  return getSetting(runtime, 'OPENAI_EMBEDDING_MODEL') ?? 'text-embedding-3-small';
-}
-
-function getOpenAIEmbeddingDimensions(runtime: any): number | undefined {
-  const dimsString = getSetting(runtime, 'OPENAI_EMBEDDING_DIMENSIONS');
-  return dimsString ? parseInt(dimsString, 10) : undefined;
-}
-
-const OPENAI_BASE_URL = 'https://api.openai.com/v1';
-
-function createMorpheusClient(runtime: any) {
+function createMorpheusClient(runtime: IAgentRuntime) {
   return createOpenAI({
     apiKey: getMorpheusApiKey(runtime),
     baseURL: getBaseURL(),
@@ -55,7 +31,7 @@ function createMorpheusClient(runtime: any) {
 
 const PLUGIN_VERSION = '1.1.2-obj-gen-fix'; // Updated version
 
-async function generateMorpheusResponse(runtime: any, params: GenerateTextParams) {
+async function generateMorpheusResponse(runtime: IAgentRuntime, params: GenerateTextParams) {
   const morpheus = createMorpheusClient(runtime);
   const model =
     params.modelType === ModelType.TEXT_LARGE ? getLargeModel(runtime) : getSmallModel(runtime);
@@ -85,7 +61,7 @@ async function generateMorpheusResponse(runtime: any, params: GenerateTextParams
         max_tokens: params.maxTokens ?? 8192,
         frequency_penalty: params.frequencyPenalty ?? 0.7,
         presence_penalty: params.presencePenalty ?? 0.7,
-      }),
+      } as MorpheusApiRequestParams),
     });
 
     if (!response.ok) {
@@ -144,6 +120,13 @@ export const morpheusPlugin: Plugin = {
   },
   async init(_config, runtime) {
     logger.info(`[plugin-morpheus] Initializing v${PLUGIN_VERSION}`);
+    try {
+      // Validate configuration
+      await validateMorpheusConfig(runtime);
+    } catch (error) {
+      logger.warn(`[plugin-morpheus] Configuration validation warning: ${error.message}`);
+    }
+    
     if (!getMorpheusApiKey(runtime)) {
       logger.warn(
         '[plugin-morpheus] MORPHEUS_API_KEY is not set - Morpheus text generation will fail'

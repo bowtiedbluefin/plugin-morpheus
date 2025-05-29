@@ -1,28 +1,63 @@
 {
   "name": "@elizaos/plugin-morpheus",
   "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "module": "src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "require": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "prettier --write ./src",
+    "format": "prettier --write ./src",
+    "format:check": "prettier --check ./src"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^0.0.66",
+    "ai": "^4.0.0",
+    "formdata-node": "^6.0.3",
+    "zod": "^3.22.4"
+  },
+  "peerDependencies": {
+    "@elizaos/core": "*"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "prettier": "3.5.3"
+  },
   "agentConfig": {
     "pluginType": "elizaos:plugin:1.0.0",
     "pluginParameters": {
       "MORPHEUS_API_KEY": {
         "type": "string",
-        "description": "Morpheus API key"
+        "description": "Morpheus API key",
+        "required": true
       },
       "MORPHEUS_SMALL_MODEL": {
         "type": "string",
-        "description": "Morpheus small model for text generation"
+        "description": "Morpheus small model for text generation",
+        "default": "llama-3.3-70b"
       },
       "MORPHEUS_LARGE_MODEL": {
         "type": "string",
-        "description": "Morpheus large model for text generation"
+        "description": "Morpheus large model for text generation", 
+        "default": "llama-3.3-70b"
       },
       "OPENAI_API_KEY": {
         "type": "string",
-        "description": "OpenAI API key"
+        "description": "OpenAI API key for embeddings",
+        "required": true
       },
       "OPENAI_EMBEDDING_MODEL": {
         "type": "string",
-        "description": "OpenAI embedding model"
+        "description": "OpenAI embedding model",
+        "default": "text-embedding-3-small"
       },
       "OPENAI_EMBEDDING_DIMENSIONS": {
         "type": "number",

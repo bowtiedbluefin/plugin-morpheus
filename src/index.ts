@@ -1,12 +1,9 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import type {
-  ModelTypeName,
-  ObjectGenerationParams,
   Plugin,
-  TextEmbeddingParams,
   IAgentRuntime,
 } from '@elizaos/core';
-import { type GenerateTextParams, ModelType, logger } from '@elizaos/core';
+import { ModelType, logger } from '@elizaos/core';
 import { generateObject, generateText } from 'ai';
 import { FormData as NodeFormData, File as NodeFile } from 'formdata-node';
 import {
@@ -31,7 +28,7 @@ function createMorpheusClient(runtime: IAgentRuntime) {
 
 const PLUGIN_VERSION = '1.1.2-obj-gen-fix'; // Updated version
 
-async function generateMorpheusResponse(runtime: IAgentRuntime, params: GenerateTextParams) {
+async function generateMorpheusResponse(runtime: IAgentRuntime, params: any) {
   const morpheus = createMorpheusClient(runtime);
   const model =
     params.modelType === ModelType.TEXT_LARGE ? getLargeModel(runtime) : getSmallModel(runtime);
@@ -110,20 +107,110 @@ async function generateMorpheusResponse(runtime: IAgentRuntime, params: Generate
 export const morpheusPlugin: Plugin = {
   name: 'morpheus',
   description: `Morpheus AI plugin (Handles Inference; Embeddings via OpenAI - v${PLUGIN_VERSION})`,
-  config: {
-    MORPHEUS_API_KEY: process.env.MORPHEUS_API_KEY,
-    MORPHEUS_SMALL_MODEL: process.env.MORPHEUS_SMALL_MODEL,
-    MORPHEUS_LARGE_MODEL: process.env.MORPHEUS_LARGE_MODEL,
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-    OPENAI_EMBEDDING_MODEL: process.env.OPENAI_EMBEDDING_MODEL,
-    OPENAI_EMBEDDING_DIMENSIONS: process.env.OPENAI_EMBEDDING_DIMENSIONS,
+  models: {
+    [ModelType.TEXT_LARGE]: async (runtime: IAgentRuntime, params: any) => {
+      return generateMorpheusResponse(runtime, { ...params, modelType: ModelType.TEXT_LARGE });
+    },
+    [ModelType.TEXT_SMALL]: async (runtime: IAgentRuntime, params: any) => {
+      return generateMorpheusResponse(runtime, { ...params, modelType: ModelType.TEXT_SMALL });
+    },
+    [ModelType.OBJECT_LARGE]: async (runtime: IAgentRuntime, params: any) => {
+      const jsonPrompt = `${params.prompt}\n\nPlease provide your response strictly in JSON format. Do not include any explanatory text before or after the JSON object.`;
+      const response = await generateMorpheusResponse(runtime, {
+        runtime,
+        prompt: jsonPrompt,
+        modelType: ModelType.OBJECT_LARGE,
+        temperature: params.temperature ?? 0,
+        maxTokens: 8192,
+        frequencyPenalty: 0.7,
+        presencePenalty: 0.7,
+        stopSequences: [],
+      });
+
+      try {
+        // Clean the response to ensure we only parse the JSON part
+        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          throw new Error('No JSON object found in response');
+        }
+        return JSON.parse(jsonMatch[0]);
+      } catch (error) {
+        logger.error('[plugin-morpheus] Failed to parse JSON response:', { response, error });
+        throw new Error('Model did not return valid JSON.');
+      }
+    },
+    [ModelType.OBJECT_SMALL]: async (runtime: IAgentRuntime, params: any) => {
+      const jsonPrompt = `${params.prompt}\n\nPlease provide your response strictly in JSON format. Do not include any explanatory text before or after the JSON object.`;
+      const response = await generateMorpheusResponse(runtime, {
+        runtime,
+        prompt: jsonPrompt,
+        modelType: ModelType.OBJECT_SMALL,
+        temperature: params.temperature ?? 0,
+        maxTokens: 8192,
+        frequencyPenalty: 0.7,
+        presencePenalty: 0.7,
+        stopSequences: [],
+      });
+
+      try {
+        // Clean the response to ensure we only parse the JSON part
+        const jsonMatch = response.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          throw new Error('No JSON object found in response');
+        }
+        return JSON.parse(jsonMatch[0]);
+      } catch (error) {
+        logger.error('[plugin-morpheus] Failed to parse JSON response:', { response, error });
+        throw new Error('Model did not return valid JSON.');
+      }
+    },
+    [ModelType.TEXT_EMBEDDING]: async (runtime: IAgentRuntime, params: any): Promise<number[]> => {
+      logger.debug(`[plugin-morpheus/OpenAI Embed v${PLUGIN_VERSION}] Handler entered.`);
+      const openaiApiKey = getOpenAIApiKey(runtime);
+      const model = getOpenAIEmbeddingModel(runtime);
+      const dimensions = getOpenAIEmbeddingDimensions(runtime);
+
+      if (!openaiApiKey) {
+        throw new Error('OPENAI_API_KEY is required for embeddings');
+      }
+
+      const openai = createOpenAI({
+        apiKey: openaiApiKey,
+        baseURL: OPENAI_BASE_URL,
+      });
+
+      try {
+        const response = await fetch(`${OPENAI_BASE_URL}/embeddings`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${openaiApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            input: params.text || params.prompt || '',
+            model: model,
+            ...(dimensions && { dimensions }),
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        return data.data[0].embedding;
+      } catch (error) {
+        logger.error('[plugin-morpheus] Error generating embedding:', error);
+        throw error;
+      }
+    },
   },
-  async init(_config, runtime) {
+  async init(config: Record<string, string>, runtime: IAgentRuntime) {
     logger.info(`[plugin-morpheus] Initializing v${PLUGIN_VERSION}`);
     try {
       // Validate configuration
       await validateMorpheusConfig(runtime);
-    } catch (error) {
+    } catch (error: any) {
       logger.warn(`[plugin-morpheus] Configuration validation warning: ${error.message}`);
     }
     
@@ -135,173 +222,6 @@ export const morpheusPlugin: Plugin = {
     if (!getOpenAIApiKey(runtime)) {
       logger.warn('[plugin-morpheus] OPENAI_API_KEY is not set - Embeddings via OpenAI will fail');
     }
-  },
-  models: {
-    [ModelType.TEXT_LARGE]: async (runtime, params: GenerateTextParams) => {
-      return generateMorpheusResponse(runtime, { ...params, modelType: ModelType.TEXT_LARGE });
-    },
-    [ModelType.TEXT_SMALL]: async (runtime, params: GenerateTextParams) => {
-      return generateMorpheusResponse(runtime, { ...params, modelType: ModelType.TEXT_SMALL });
-    },
-    [ModelType.OBJECT_LARGE]: async (runtime, params: ObjectGenerationParams) => {
-      const jsonPrompt = `${params.prompt}\n\nPlease provide your response strictly in JSON format. Do not include any explanatory text before or after the JSON object.`;
-      const response = await generateMorpheusResponse(runtime, {
-        prompt: jsonPrompt,
-        modelType: ModelType.OBJECT_LARGE,
-        temperature: params.temperature ?? 0,
-        maxTokens: 8192,
-        frequencyPenalty: 0.7,
-        presencePenalty: 0.7,
-        stopSequences: [],
-        runtime,
-      });
-
-      try {
-        // Clean the response to ensure we only parse the JSON part
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          throw new Error('No JSON object found in response');
-        }
-        return JSON.parse(jsonMatch[0]);
-      } catch (error) {
-        logger.error('[plugin-morpheus] Failed to parse JSON response:', { response, error });
-        throw new Error('Model did not return valid JSON.');
-      }
-    },
-    [ModelType.OBJECT_SMALL]: async (runtime, params: ObjectGenerationParams) => {
-      const jsonPrompt = `${params.prompt}\n\nPlease provide your response strictly in JSON format. Do not include any explanatory text before or after the JSON object.`;
-      const response = await generateMorpheusResponse(runtime, {
-        prompt: jsonPrompt,
-        modelType: ModelType.OBJECT_SMALL,
-        temperature: params.temperature ?? 0,
-        maxTokens: 8192,
-        frequencyPenalty: 0.7,
-        presencePenalty: 0.7,
-        stopSequences: [],
-        runtime,
-      });
-
-      try {
-        // Clean the response to ensure we only parse the JSON part
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          throw new Error('No JSON object found in response');
-        }
-        return JSON.parse(jsonMatch[0]);
-      } catch (error) {
-        logger.error('[plugin-morpheus] Failed to parse JSON response:', { response, error });
-        throw new Error('Model did not return valid JSON.');
-      }
-    },
-    [ModelType.TEXT_EMBEDDING]: async (runtime, params: TextEmbeddingParams): Promise<number[]> => {
-      logger.debug(`[plugin-morpheus/OpenAI Embed v${PLUGIN_VERSION}] Handler entered.`);
-      const openaiApiKey = getOpenAIApiKey(runtime);
-      const model = getOpenAIEmbeddingModel(runtime);
-      const dimensions = getOpenAIEmbeddingDimensions(runtime);
-      const hardcodedDimensionFallback = 1536;
-
-      if (!params?.text || params.text.trim() === '') {
-        logger.debug(
-          `[plugin-morpheus/OpenAI Embed v${PLUGIN_VERSION}] Creating test embedding for initialization/empty text`
-        );
-        const initDimensions = dimensions ?? hardcodedDimensionFallback;
-        const testVector = new Array(initDimensions).fill(0);
-        testVector[0] = 0.1;
-        return testVector;
-      }
-
-      if (!openaiApiKey) {
-        logger.error(
-          `[plugin-morpheus/OpenAI Embed v${PLUGIN_VERSION}] OPENAI_API_KEY is missing. Cannot generate embedding.`
-        );
-        const errorDims = dimensions ?? hardcodedDimensionFallback;
-        const errorVector = new Array(errorDims).fill(0);
-        errorVector[0] = 0.3;
-        return errorVector;
-      }
-
-      logger.debug(
-        `[plugin-morpheus/OpenAI Embed v${PLUGIN_VERSION}] Attempting OpenAI API call...`
-      );
-      try {
-        const payload: { model: string; input: string; dimensions?: number } = {
-          model: model,
-          input: params.text,
-        };
-        if (dimensions !== undefined) {
-          payload.dimensions = dimensions;
-        }
-        logger.debug(
-          `[plugin-morpheus/OpenAI Embed v${PLUGIN_VERSION}] Calling ${OPENAI_BASE_URL}/embeddings with model ${model}`
-        );
-
-        const response = await fetch(`${OPENAI_BASE_URL}/embeddings`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${openaiApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        });
-
-        logger.debug(
-          `[plugin-morpheus/OpenAI Embed v${PLUGIN_VERSION}] Received response status: ${response.status}`
-        );
-        if (!response.ok) {
-          let errorBody = 'Could not parse error body';
-          try {
-            errorBody = await response.text();
-          } catch (e) {
-            /* ignore */
-          }
-          logger.error(
-            `[plugin-morpheus/OpenAI Embed v${PLUGIN_VERSION}] OpenAI API error: ${response.status} - ${response.statusText}`,
-            { errorBody }
-          );
-          throw new Error(`OpenAI API error: ${response.status} - ${response.statusText}`);
-        }
-
-        const data = (await response.json()) as {
-          data: Array<{ embedding: number[] }>;
-          usage: object;
-          model: string;
-        };
-        logger.debug(
-          `[plugin-morpheus/OpenAI Embed v${PLUGIN_VERSION}] Successfully parsed OpenAI response.`
-        );
-
-        if (!data?.data?.[0]?.embedding) {
-          logger.error(
-            `[plugin-morpheus/OpenAI Embed v${PLUGIN_VERSION}] No embedding returned from OpenAI API`,
-            { responseData: data }
-          );
-          throw new Error('No embedding returned from OpenAI API');
-        }
-
-        const embedding = data.data[0].embedding;
-        const embeddingDimensions = embedding.length;
-
-        if (dimensions !== undefined && embeddingDimensions !== dimensions) {
-          logger.warn(
-            `[plugin-morpheus/OpenAI Embed v${PLUGIN_VERSION}] OpenAI Embedding dimensions mismatch: requested ${dimensions}, got ${embeddingDimensions}`
-          );
-        }
-
-        logger.debug(
-          `[plugin-morpheus/OpenAI Embed v${PLUGIN_VERSION}] Returning embedding with dimensions ${embeddingDimensions}.`
-        );
-        return embedding;
-      } catch (error) {
-        logger.error(
-          `[plugin-morpheus/OpenAI Embed v${PLUGIN_VERSION}] Error during OpenAI embedding generation process:`,
-          error
-        );
-        const errorDims = dimensions ?? hardcodedDimensionFallback;
-        const errorVector = new Array(errorDims).fill(0);
-        errorVector[0] = 0.2;
-        return errorVector;
-      }
-    },
   },
 };
 

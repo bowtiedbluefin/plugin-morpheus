@@ -5,72 +5,85 @@
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./src/index.ts",
-      "require": "./src/index.ts"
-    }
+  "publishConfig": {
+    "access": "public"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "lint": "prettier --write ./src",
-    "format": "prettier --write ./src",
-    "format:check": "prettier --check ./src",
+    "typecheck": "tsc --noEmit",
     "prepare": "bun run build"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^0.0.34",
+    "@ai-sdk/openai": "^1.3.22",
     "@elizaos/core": "^1.0.12",
-    "ai": "^3.2.38",
-    "formdata-node": "^6.0.3",
-    "zod": "^3.22.4"
-  },
-  "peerDependencies": {
-    "@elizaos/core": "*"
+    "ai": "^4.3.16"
   },
   "devDependencies": {
-    "tsup": "^8.0.0",
-    "typescript": "^5.0.0",
-    "prettier": "3.5.3"
+    "@types/bun": "^1.2.17",
+    "@types/node": "^24.0.3",
+    "tsup": "8.5.0",
+    "typescript": "^5.8.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elizaos-plugins/plugin-morpheus.git"
   },
   "agentConfig": {
     "pluginType": "elizaos:plugin:1.0.0",
     "pluginParameters": {
       "MORPHEUS_API_KEY": {
         "type": "string",
-        "description": "Morpheus API key",
-        "required": true
+        "description": "API key used for authenticating requests to the Morpheus AI service.",
+        "required": true,
+        "sensitive": true
       },
       "MORPHEUS_SMALL_MODEL": {
         "type": "string",
-        "description": "Morpheus small model for text generation",
+        "description": "Identifier of the small language model to be used by the Morpheus plugin.",
+        "required": false,
+        "sensitive": false,
         "default": "mistral-31-24b"
       },
       "MORPHEUS_LARGE_MODEL": {
         "type": "string",
-        "description": "Morpheus large model for text generation",
+        "description": "Identifier of the large language model to be used by the Morpheus plugin.",
+        "required": false,
+        "sensitive": false,
         "default": "qwen3-235b"
       },
       "EMBEDDING_PROVIDER": {
         "type": "string",
-        "description": "Choose your embedding provider.",
-        "enum": ["openai", "venice"]
+        "description": "The embedding provider to use for generating text embeddings.",
+        "enum": [
+          "openai",
+          "venice"
+        ],
+        "required": false,
+        "sensitive": false
       },
       "EMBEDDING_API_KEY": {
         "type": "string",
         "description": "API key for your chosen embedding provider (OpenAI or Venice).",
-        "required": true
+        "required": false,
+        "sensitive": true
       },
       "EMBEDDING_MODEL": {
         "type": "string",
-        "description": "Optional. Embedding model to use. Press Enter to use the default for your chosen provider.",
-        "required": false
+        "description": "The embedding model to use. If not provided, the default for the chosen provider will be used.",
+        "required": false,
+        "sensitive": false
       },
       "EMBEDDING_DIMENSIONS": {
         "type": "number",
-        "description": "Optional custom dimensions for embeddings.",
-        "default": 1024
+        "description": "The number of dimensions expected in the generated text embeddings.",
+        "required": false,
+        "default": 1024,
+        "sensitive": false
       }
     }
   }

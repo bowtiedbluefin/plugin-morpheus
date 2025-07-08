@@ -69,7 +69,7 @@ function getBaseURL(runtime: IAgentRuntime, provider: 'morpheus' | 'openai' | 'v
     case 'openai':
       return getSetting(runtime, 'OPENAI_BASE_URL', 'https://api.openai.com/v1') as string;
     case 'venice':
-       return getSetting(runtime, 'VENICE_BASE_URL', 'https://api.venice.ai/v1') as string;
+       return getSetting(runtime, 'VENICE_BASE_URL', 'https://api.venice.ai/api/v1') as string;
     default:
       return '';
   }
@@ -105,14 +105,20 @@ function getJsonRepairFunction(): (params: {
   text: string;
   error: unknown;
 }) => Promise<string | null> {
-  return async ({ text, error }) => {
-    logger.warn('JSON parsing failed, attempting to repair...', {
-      text,
-      error,
-    });
-    // Placeholder for a more robust JSON repair mechanism
-    const repaired = text.replace(/`/g, '').trim();
-    return repaired;
+  return async ({ text, error }: { text: string; error: unknown }) => {
+    try {
+      if (error instanceof JSONParseError) {
+        const cleanedText = text.replace(/```json\\n|\\n```|```/g, "");
+        JSON.parse(cleanedText);
+        return cleanedText;
+      }
+      return null;
+    } catch (jsonError: unknown) {
+      const message =
+        jsonError instanceof Error ? jsonError.message : String(jsonError);
+      logger.warn(`Failed to repair JSON text: ${message}`);
+      return null;
+    }
   };
 }
 
@@ -132,21 +138,43 @@ async function generateObjectByModelType(
       output: 'no-schema',
       prompt: params.prompt,
       temperature: params.temperature ?? 0,
-      ...(params.schema && { schema: params.schema }),
       experimental_repairText: getJsonRepairFunction(),
     });
     return object as JSONValue;
   } catch (error) {
     if (error instanceof JSONParseError) {
-      logger.error('Failed to parse JSON response from model', {
-        error: error.message,
+      logger.error(`[generateObject] Failed to parse JSON: ${error.message}`);
+
+      const repairFunction = getJsonRepairFunction();
+      const repairedJsonString = await repairFunction({
         text: error.text,
+        error,
       });
-      throw new Error(
-        `Failed to generate valid JSON for ${modelType} using ${modelName}.`,
-      );
+
+      if (repairedJsonString) {
+        try {
+          const repairedObject = JSON.parse(repairedJsonString);
+          logger.info("[generateObject] Successfully repaired JSON.");
+          return repairedObject;
+        } catch (repairParseError: unknown) {
+          const message =
+            repairParseError instanceof Error
+              ? repairParseError.message
+              : String(repairParseError);
+          logger.error(
+            `[generateObject] Failed to parse repaired JSON: ${message}`
+          );
+          throw repairParseError;
+        }
+      } else {
+        logger.error("[generateObject] JSON repair failed.");
+        throw error;
+      }
+    } else {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`[generateObject] Unknown error: ${message}`);
+      throw error;
     }
-    throw error;
   }
 }
 // #endregion
@@ -155,8 +183,16 @@ async function generateObjectByModelType(
 export const morpheusPlugin: Plugin = {
   name: 'morpheus',
   description:
-    'Morpheus plugin for Text Generation, with optional Venice/OpenAI embeddings.',
-
+    'Morpheus plugin for Text Generation, with optional embedding support via Venice or OpenAI.',
+  config: {
+    MORPHEUS_API_KEY: process.env.MORPHEUS_API_KEY,
+    MORPHEUS_SMALL_MODEL: process.env.MORPHEUS_SMALL_MODEL,
+    MORPHEUS_LARGE_MODEL: process.env.MORPHEUS_LARGE_MODEL,
+    EMBEDDING_PROVIDER: process.env.EMBEDDING_PROVIDER,
+    EMBEDDING_API_KEY: process.env.EMBEDDING_API_KEY,
+    EMBEDDING_MODEL: process.env.EMBEDDING_MODEL,
+    EMBEDDING_DIMENSIONS: process.env.EMBEDDING_DIMENSIONS,
+  },
   async init(_config, runtime) {
     logger.info('[plugin-morpheus] Initializing...');
     if (!getMorpheusApiKey(runtime)) {

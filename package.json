@@ -1,5 +1,5 @@
 {
-  "name": "@elizaos/plugin-morpheus",
+  "name": "@bowtiedbluefin/plugin-morpheus",
   "version": "2.0.0",
   "type": "module",
   "main": "dist/index.js",
@@ -31,7 +31,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/elizaos-plugins/plugin-morpheus.git"
+    "url": "git+https://github.com/bowtiedbluefin/plugin-morpheus.git"
   },
   "agentConfig": {
     "pluginType": "elizaos:plugin:1.0.0",

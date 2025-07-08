@@ -16,7 +16,8 @@
     "dev": "tsup --watch",
     "lint": "prettier --write ./src",
     "format": "prettier --write ./src",
-    "format:check": "prettier --check ./src"
+    "format:check": "prettier --check ./src",
+    "prepare": "bun run build"
   },
   "dependencies": {
     "@ai-sdk/openai": "^0.0.34",
@@ -53,9 +54,8 @@
       },
       "EMBEDDING_PROVIDER": {
         "type": "string",
-        "description": "The embedding provider to use.",
-        "enum": ["openai", "venice"],
-        "default": "openai"
+        "description": "Choose your embedding provider.",
+        "enum": ["openai", "venice"]
       },
       "EMBEDDING_API_KEY": {
         "type": "string",
@@ -64,7 +64,7 @@
       },
       "EMBEDDING_MODEL": {
         "type": "string",
-        "description": "Embedding model to use. Defaults will be used if not set.",
+        "description": "Optional. Embedding model to use. Press Enter to use the default for your chosen provider.",
         "required": false
       },
       "EMBEDDING_DIMENSIONS": {

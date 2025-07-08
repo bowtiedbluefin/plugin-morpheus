@@ -40,7 +40,7 @@ The plugin can be configured via environment variables or runtime settings:
 - `MORPHEUS_API_KEY`: Your Morpheus AI API key.
 - `MORPHEUS_SMALL_MODEL`: The model for small text generation (defaults to `mistral-31-24b`).
 - `MORPHEUS_LARGE_MODEL`: The model for large text generation (defaults to `qwen3-235b`).
-- `EMBEDDING_PROVIDER`: The embedding service to use, either `openai` (default) or `venice`.
+- `EMBEDDING_PROVIDER`: The embedding service to use. Must be either `openai` or `venice`.
 - `EMBEDDING_API_KEY`: API key for your chosen embedding provider.
 - `EMBEDDING_MODEL`: Optional. The embedding model to use. If not set, a default will be used (`text-embedding-3-small` for OpenAI, `text-embedding-bge-m3` for Venice).
 - `EMBEDDING_DIMENSIONS`: Optional. Custom dimensions for embeddings (defaults to `1024`).

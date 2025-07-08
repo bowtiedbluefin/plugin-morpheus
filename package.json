@@ -53,36 +53,24 @@
       },
       "EMBEDDING_PROVIDER": {
         "type": "string",
-        "description": "The embedding provider to use, either 'openai' or 'venice'",
+        "description": "The embedding provider to use.",
+        "enum": ["openai", "venice"],
         "default": "openai"
       },
-      "OPENAI_API_KEY": {
+      "EMBEDDING_API_KEY": {
         "type": "string",
-        "description": "OpenAI API key for embeddings",
+        "description": "API key for your chosen embedding provider (OpenAI or Venice).",
+        "required": true
+      },
+      "EMBEDDING_MODEL": {
+        "type": "string",
+        "description": "Embedding model to use. Defaults will be used if not set.",
         "required": false
       },
-      "OPENAI_EMBEDDING_MODEL": {
-        "type": "string",
-        "description": "OpenAI embedding model",
-        "default": "text-embedding-3-small"
-      },
-      "OPENAI_EMBEDDING_DIMENSIONS": {
+      "EMBEDDING_DIMENSIONS": {
         "type": "number",
-        "description": "Optional custom dimensions for OpenAI embeddings"
-      },
-      "VENICE_API_KEY": {
-        "type": "string",
-        "description": "Venice API key for embeddings",
-        "required": false
-      },
-      "VENICE_EMBEDDING_MODEL": {
-        "type": "string",
-        "description": "Venice embedding model",
-        "default": "text-embedding-bge-m3"
-      },
-      "VENICE_EMBEDDING_DIMENSIONS": {
-        "type": "number",
-        "description": "Optional custom dimensions for Venice embeddings"
+        "description": "Optional custom dimensions for embeddings.",
+        "default": 1024
       }
     }
   }

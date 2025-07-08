@@ -7,24 +7,18 @@ Morpheus AI plugin for ElizaOS. This plugin provides integration with the Morphe
 ### From GitHub
 ```bash
 # Install the plugin
-npm install github:bowtiedbluefin/plugin-morpheus
+npm install github:bowtiedbluefin/plugin-morpheus#dev
 
 # Set required environment variables
 export MORPHEUS_API_KEY="your-morpheus-api-key"
-
-# For OpenAI Embeddings (default)
-export EMBEDDING_PROVIDER="openai"
-export OPENAI_API_KEY="your-openai-api-key"
-
-# For Venice Embeddings
-export EMBEDDING_PROVIDER="venice"
-export VENICE_API_KEY="your-venice-api-key"
+export EMBEDDING_PROVIDER="openai" # or "venice"
+export EMBEDDING_API_KEY="your-embedding-api-key"
 ```
 
 ### Verify Installation
 ```bash
 # Test plugin loading
-node -e "import('@elizaos/plugin-morpheus').then(m => console.log('Plugin loaded:', m.default.name))"
+node -e "import('@bowtiedbluefin/plugin-morpheus').then(m => console.log('Plugin loaded:', m.default.name))"
 ```
 
 ### Integration with Eliza
@@ -47,16 +41,9 @@ The plugin can be configured via environment variables or runtime settings:
 - `MORPHEUS_SMALL_MODEL`: The model for small text generation (defaults to `mistral-31-24b`).
 - `MORPHEUS_LARGE_MODEL`: The model for large text generation (defaults to `qwen3-235b`).
 - `EMBEDDING_PROVIDER`: The embedding service to use, either `openai` (default) or `venice`.
-
-### OpenAI Embeddings
-- `OPENAI_API_KEY`: Your OpenAI API key.
-- `OPENAI_EMBEDDING_MODEL`: The OpenAI model for embeddings (defaults to `text-embedding-3-small`).
-- `OPENAI_EMBEDDING_DIMENSIONS`: Optional dimensions for OpenAI embeddings.
-
-### Venice Embeddings
-- `VENICE_API_KEY`: Your Venice API key.
-- `VENICE_EMBEDDING_MODEL`: The Venice model for embeddings (defaults to `text-embedding-bge-m3`).
-- `VENICE_EMBEDDING_DIMENSIONS`: Optional dimensions for Venice embeddings.
+- `EMBEDDING_API_KEY`: API key for your chosen embedding provider.
+- `EMBEDDING_MODEL`: Optional. The embedding model to use. If not set, a default will be used (`text-embedding-3-small` for OpenAI, `text-embedding-bge-m3` for Venice).
+- `EMBEDDING_DIMENSIONS`: Optional. Custom dimensions for embeddings (defaults to `1024`).
 
 ## Features
 

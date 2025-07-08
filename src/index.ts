@@ -42,36 +42,24 @@ function getEmbeddingProvider(runtime: IAgentRuntime): 'openai' | 'venice' {
   );
 }
 
-function getOpenAIApiKey(runtime: IAgentRuntime): string | undefined {
-  return getSetting(runtime, 'OPENAI_API_KEY');
-}
-
-function getVeniceApiKey(runtime: IAgentRuntime): string | undefined {
-  return getSetting(runtime, 'VENICE_API_KEY');
+function getEmbeddingApiKey(runtime: IAgentRuntime): string | undefined {
+  return getSetting(runtime, 'EMBEDDING_API_KEY');
 }
 
 function getEmbeddingModel(runtime: IAgentRuntime): string {
-  const provider = getEmbeddingProvider(runtime);
-  if (provider === 'venice') {
-    return (
-      getSetting(runtime, 'VENICE_EMBEDDING_MODEL') ??
-      'text-embedding-bge-m3'
-    );
+  const userModel = getSetting(runtime, 'EMBEDDING_MODEL');
+  if (userModel) {
+    return userModel;
   }
-  return (
-    getSetting(runtime, 'OPENAI_EMBEDDING_MODEL') ?? 'text-embedding-3-small'
-  );
+  const provider = getEmbeddingProvider(runtime);
+  return provider === 'venice'
+    ? 'text-embedding-bge-m3'
+    : 'text-embedding-3-small';
 }
 
 function getEmbeddingDimensions(runtime: IAgentRuntime): number {
-  const provider = getEmbeddingProvider(runtime);
-  const key =
-    provider === 'venice'
-      ? 'VENICE_EMBEDDING_DIMENSIONS'
-      : 'OPENAI_EMBEDDING_DIMENSIONS';
-  const defaultValue = provider === 'venice' ? 1024 : 1536;
-  const setting = getSetting(runtime, key);
-  return setting ? parseInt(setting, 10) : defaultValue;
+  const setting = getSetting(runtime, 'EMBEDDING_DIMENSIONS');
+  return setting ? parseInt(setting, 10) : 1024;
 }
 
 function getBaseURL(runtime: IAgentRuntime, provider: 'morpheus' | 'openai' | 'venice'): string {
@@ -98,17 +86,14 @@ function createMorpheusClient(runtime: IAgentRuntime) {
 
 function createEmbeddingClient(runtime: IAgentRuntime) {
   const provider = getEmbeddingProvider(runtime);
-  const apiKey =
-    provider === 'venice'
-      ? getVeniceApiKey(runtime)
-      : getOpenAIApiKey(runtime);
+  const apiKey = getEmbeddingApiKey(runtime);
   const baseURL =
     provider === 'venice'
       ? getBaseURL(runtime, 'venice')
       : getBaseURL(runtime, 'openai');
 
   if (!apiKey) {
-    throw new Error(`API key for ${provider} is not configured.`);
+    throw new Error(`EMBEDDING_API_KEY is not configured for provider ${provider}.`);
   }
 
   return createOpenAI({ apiKey, baseURL });
